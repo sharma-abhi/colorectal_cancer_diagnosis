@@ -1,0 +1,77 @@
+---
+title: "A statistical approach to colorectal cancer diagnosis based on protein signature"
+author: "Group 5"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+Colorectal cancer (CRC) is cancer of the last several inches of the colon,the lower part of the large intestine. Colorectal cancer often starts as clumps of cells called polyps. It is the third most common type of cancer in the United States[1]. Cancer cases have decreased with the use of Colonoscopies.The current procedure includes a fecal occult blood test (FOBT) for pre-selection of cases for further colonoscopic evaluation. However, its accuracy is quite low and does not adequately detect subjeocts with CRC. A non-invasive method for pre-selection of screening for CRC is in need. We have anazyled data collected by Surinova, S. et al.[2] which contains information about protein concentration in CRC and Healthy patients and built a statistical model to predict the possibility of presence of CRC in a subject. This is clearly a classification problem and using Logistic Regression, we were able to identify 6 proteins which correlate more with prevalence of CRC.
+
+## Definitions and Abbreviations  
+1. Training dataset - Dataset used to train the final selected model.  
+2. Testing dataset - Dataset used to test the final selected model.  
+3. Model-Fitting dataset - Dataset sampled from the Training dataset used to fit the candidate models.
+4. Validation dataset - Dataset sampled from the Training dataset used to select a final model from the candidate models.
+5. Explanatory Variables/Features - Normalized log2 values of Protein signatures
+6. Class/Labels - Labels determing whether a subject has CRC or not.
+7. CRC - Colorectal Cancer  
+8. VIF - Variance Influence Factors
+9. AIC - Akaike Information Criterion
+10. SBC/BIC - Schwarz Bayesian Criterion/Bayesian Information Criterion
+11. ROC - Receiver Operrating Characteristic
+12. AUROC - Area under Receiver Operrating Characteristic
+
+## Methods
+### Datasets
+Two independent datasets were used in this study. The first dataset(henceforth referred as training dataset) was used for training and selection of models and the second(referred as testing dataset) was used for final calculation of model metrics. The training dataset comprised of protein concentration of subjects from a prospective screening study (BLiTz) (Hundt et al, 2009; Brenner et. al, 2010) and a case–control study examining the role of colonoscopyy in CRC prevention (DACHS+)(Brenner et. al, 2006, 2007). The validation dataset included subjects selected at the University Hospital Olomouc[2]. The training dataset consisted of two groups(CRC and non-CRC) of 100 subjects each comprising of logarithmic values of protein signatures.The testing dataset consisted of 202 subjects with CRC and 67 subjects of non-CRC subjects.To make the intensities comparable for the purpose of predictive analysis, the median normalized log2-relative quantifications of
+the validation cohort were equalized with the median normalized log2-relative quantifications of the training cohort.
+
+### Preprocessing
+Proteins with more than 25% missing values were removed from both datasets and rest were imputed with minimum value observed in the same dataset, representing the limit of detection of protein signatures[2].The dataset consisted of large number of highly correlated proteins presenting the problem of multicollinearity among the predictors. Figure 1 shows the correlation matrix for the training dataset.Blue represents positive correlation and Red negative. The larger the squares, the larger the correlation. Stepwise Variance Inflation Factors(VIF) was used to eliminate the multicollinearity problem[3].VIF for an explanatory variable is obtained using the pseudo r-squared value of regression of that variable against all other explanatory variables.A threshold of 5 was used to eliminate a variable.
+$$
+VIF_j = \frac{1}{1 - R_j^2}
+$$
+The training dataset was randomly split in a 80:20 manner into model-fitting and validation datasets.  
+
+### Candidate Models
+For creation of candidate models, The following four methods were used on the model-fitting dataset:  "Stepwise Backward using AIC"", "Stepwise Forward using AIC", "Stepwise Both Forward and Backward using AIC" and "Stepwise Both Forward and Backward using SBC Criterion". 2 best models from each method were selected as the Candidate models.  
+
+#### Evaluation of Candidate Models  
+Homer-Lemeshow Goodness of Fit Test was applied to each model.We consider the model to be unfit if p-value < 0.05. However, none of the candidate models had p-value < 0.05 and hence, none were eliminated (Appendix).  
+We next plot the deviance residuals of the models with predicted probabilities with Lowess Smooth.Figure 2 shows the plot of Deviance Residuals vs Estimated Probability with Lowess Smooth. If a model is correct, a lowess smooth of the plot of the residuals against the estimated probability $\hat{\pi}_i$ should result approximately in a horizontal line with zero intercept. None of the plots depict any significant departure from this and hence, there is no evidence that any model is inadequate.  
+A Half-normal probability plot helps to highlight outlying deviance residuals even though the residuals are not normally distributed. Outliers appear at the top right of a half-normal probability plot as points separated from the others. Figure 3 shows the half-normal probability plots for each candidate model.We observe that observations 18, 40 and 112 might be an outlier. However, more detailed study of these observations is required before we exclude them as outliers.For the purpose of this study, we do not consider them as outliers.  
+We next consider overdispersion. Sometimes we can get a deviance that is much larger than expected if the model was correct. It can be due to the presence of outliers, sparse data or clustering of data. The approach to deal with overdispersion is to add a dispersion parameter $\sigma^2$ . It can be estimated with: $\hat{\phi}^2 = \frac{\chi^2}{n - p}$  (p = no. of parameters in model).  
+$$Var \{ Y_i \} = \phi n_i \pi_i \{ 1 - \pi_i \}$$
+We consider overdispersion to exist if $\phi$ >> 1.  
+The values of $\phi$ for the 8 candidate models were 1.17, 1.12, 1.07, 1.13, 1.08, 1.04, 1.06 and 1.14 suggesting dispersion not very different than 1 (no dispersion).  
+We next consider the predictive ability of the models. We observe how each of the model performs by predicting on the validation set. We generate the ROC plot and calculate the AUROC for each of the models. The Area under the ROC provides an unbiased, and non-parametric measure of the discrimination ability of the model. AOC = 0.5 means that predictions are no better than random guessing. An AUROC value >= 0.80 is considered ideal. Figure 4 shows the ROC plots for each of the 8 models.The AUROC is shown in the title of each of the plots. We observe that Model 4 has the maximum AUROC with value 0.7925. We'll consider this as our final model.  
+Now that we have finalised our model, we still need to determine the best cut-off value for classification. For the purpose of this study, we would like to have a model with high senstivity as we wish to minimize incorrect label of a CRC subject as non-CRC. Figure 5 shows a Sensitivity vs Specificity vs Accuracy plot. The sensitivity curve(light-dashed), the specificity curve(darker-dashed) and accuracy curve(solid) all merge at cut-off point 0.45.Since this point also results in a high sensitivity(0.8) for the validation dataset, we use this as our final cut-off point.
+We now have a final Model and a cut-off point decided.Since the model selection is complete, We merge both the model-fitting and the validation datasets and fit the model with it(while allowing for overdispersion).
+
+## Results
+Our Final model consists of 6 proteins: TIMP1, LAMP2, HP, LRG1, SERPINA7 and LUM.  
+Figure 6 shows the predicted probability lines as function of one predictor, while fixing the remaining predictors at their median values.  
+Prediction of observations from the training dataset results in 70% balanced Accuracy and 0.74 Sensitivity and 0.66 Specificity. Prediction of new observations from the testing dataset for the selected model results in 65.4% balanced Accuracy with 0.995 Sensitivity and 0.31 Specificity.    
+
+## Discussion
+Since we modeled our experiment to have high Sensitivity values, the results are accepatable to us. Also, the balanced accuracy for both training and testing datasets are almost similar(70 and 65.4 respectively). However, we do realise that the specificity and hence, the balanced accuracy has suffered. There will always be a trade-off between Sensitivity and Specificity and due to the critical nature of incorrect labeling of a CRC subject as non-CRC, we have made the choice of choosing higher Sensitivity.  
+The predictive ability might increase with more data in the training set. Also, usage of techniques like K-Nearest Neighbor for imputation of missing values in the training and testing dataset might yield better results.But since we were limiting our techniques to those learnt in class, we ignored this method. Finally, using an ensemble classification method like Random Forest or Gradient Boosted Trees or even regularization techniques might help.  
+
+## References
+[1] "Colorectal Cancer—Patient Version".Retrieved from https://www.cancer.gov/types/colorectal  
+[2] "Prediction of colorectal cancer diagnosis based on circulating plasma proteins", Silvia Surinova , Meena Choi, Sha Tao, Peter J Schüffler, Ching-Yun Chang, Timothy Clough, Kamil Vyslouzil, Marta Khoylou, Josef Srovnal, Yansheng Liu, Mariette Matondo, Ruth Hüttenhain, Hendrik Weisser, Joachim M Buhmann, Marián Hajdúch, Hermann Brenner, Olga Vitek & Ruedi Aebersold.  
+[3] Marcus."Collinearity and stepwise VIF selection".Retrieved from https://beckmw.wordpress.com/2013/02/05/collinearity-and-stepwise-vif-selection/   
+[4] Applied Linear Statistical Methods, Michael Kutner, Christopher Nachtsheim, John Neter, William Li.  
+
+## Appendix
+
+
+## Statement of Contributions
+A.S - Abhijeet Sharma   
+P.T - Pankaj Tripathi   
+A.S did selection and evaluation of models and paper writeup.  
+P.T. did pre-processing and plots.   

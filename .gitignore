@@ -1,3 +1,7 @@
+# Data and Miscellaneous files
+/data/
+/misc/
+
 # History files
 .Rhistory
 .Rapp.history
