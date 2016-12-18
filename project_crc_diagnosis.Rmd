@@ -6,8 +6,7 @@ output: word_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-setwd("/home/abhijeet/Documents/CS 7280/project")
-seed.id <- 42
+
 library(Amelia)
 library(caret)
 library(corrplot)
@@ -15,13 +14,18 @@ library(ResourceSelection)
 library(faraway)
 library(ROCR)
 library(gridExtra)
+
+# setting a seed for reproducibility.
+seed.id <- 42
+
 vif_func<-function(in_frame,thresh=10,trace=T,...){
-  
+  # This function is attributed to Marcus W Beck and 
+  # can be found at https://gist.github.com/fawda123/4717702#file-vif_fun-r
   require(fmsb)
   
   if(class(in_frame) != 'data.frame') in_frame<-data.frame(in_frame)
   
-  #get initial vif value for all comparisons of variables
+  # get initial vif value for all comparisons of variables
   vif_init<-NULL
   var_names <- names(in_frame)
   for(val in var_names){
@@ -84,13 +88,13 @@ vif_func<-function(in_frame,thresh=10,trace=T,...){
 # Pre-Processing: Cleaning and Formatting Data
 ## Input
 ```{r}
-load(file = "Surinova_training_abun.Rda")
+load(file = "data/Surinova_training_abun.Rda")
 cols <- Surinova_training_abun[,1]
 input.train.raw <- t(Surinova_training_abun[,-1])
 input.train.raw <- data.frame(input.train.raw)
 colnames(input.train.raw) <- cols
 
-load(file = "Surinova_testing_abun.Rda")
+load(file = "data/Surinova_testing_abun.Rda")
 cols <- Surinova_testing_abun[,1]
 input.test.raw <- t(Surinova_testing_abun[,-1])
 input.test.raw <- data.frame(input.test.raw)
@@ -99,7 +103,7 @@ colnames(input.test.raw) <- cols
 # check to see the column names match in both the input datasets.
 which(colnames(input.train.raw) != colnames(input.test.raw))
 
-# Sicne protein abundances are normalized within each dataset and not between training and validation set, we cannot merge these both datasets.
+# Sicne protein abundances are normalized within each dataset and not between training and testing set, we cannot merge these both datasets.
 
 # Formatting Column Names
 colnames(input.train.raw)[colnames(input.train.raw) == 'AIAG-Bovine'] <- 'AIAG.Bovine'
@@ -122,8 +126,8 @@ table(input.test.raw$Class)
 head(input.train.raw)
 str(input.train.raw)
 ```
-There are 200 subjects and 72 proteins in the training dataset out of which 100 subjects are diagnosed with CRC and 100 are healthy.   
-There are 269 subjects and 72 proteins in the testing dataset out of which 202 subjects are diagnosed with CRC and 67 are healthy.   
+There are 200 subjects and 72 proteins in the "training" dataset out of which 100 subjects are diagnosed with CRC and 100 are healthy.   
+There are 269 subjects and 72 proteins in the "testing" dataset out of which 202 subjects are diagnosed with CRC and 67 are healthy.   
 
 # Pre-Processing: Missing Values
 ## Visualizing Missing Values in Training dataset
@@ -161,7 +165,8 @@ There are 34 columns with Missing Values in the Testing Dataset.
 
 As we observe from the above tables, there are large number of columns with more than 25 % missing data.We'll drop these columns from both the datasets.
 ```{r}
-# we'll combine the dropped column list from both training and testing datasets to keep the remaining columns consistent.
+# we'll combine the dropped column lists of both training and testing datasets to keep 
+# the remaining columns consistent in both the datasets.
 dropped.columns.train <- names(missing.columns.train[missing.columns.train > 25])
 dropped.columns.test <- names(missing.columns.test[missing.columns.test > 25])
 dropped.columns.final <- union(dropped.columns.train, dropped.columns.test)
@@ -176,8 +181,8 @@ dim(input.test.df)
 ```
 In total, We dropped 17 columns.  
 
-## Dealing with Missing Values Pt. 2: Replace with Min
-For the rest of the columns with missing values, we'll replace the missing values with the mean.
+## Dealing with Missing Values Pt. 2: Replace with Minimum
+We'll replace the rest of the missing values with their minimum, representing the limit of detection of protein signatures.  
 ```{r}
 # Replace Missing Values with Min
 replace.min <- function(x) replace(x, is.na(x), min(x, na.rm=TRUE))
@@ -202,11 +207,11 @@ Also, we confirm that the data has indeed been normalized separately for each da
 ```{r}
 # Correlation between Predictors
 correlations <- cor(subset(input.train.df, select=-Class))
-png('correlations.png', width=4, height=4, units="in", res=300)
+#png('plots/correlations.png', width=4, height=4, units="in", res=300)
 corrplot(correlations, method="square", tl.cex = 0.5)
 #dev.off()
-#dev.off()
 
+# Calculate VIF and drop columns with threshold > 5.
 cols <- colnames(subset(input.train.df, select = -Class))
 keep.cols <- vif_func(in_frame=input.train.df[, cols],thresh=5,trace=F)
 keep.cols
@@ -381,7 +386,7 @@ From the above tests, we do not eliminate any Model from the candidate models.
 If the model is correct, a lowess smooth of the plot of the residuals against the estimated probability $\hat{\pi}_i$ should result approximately in a horizontal line with zero intercept.
 
 ```{r}
-png('residuals_lowess.png')
+#png('plots/residuals_lowess.png')
 par(mfrow=c(3,3))
 scatter.smooth(predict(model.BestAICBackward1, type = "response"), 
                residuals(model.BestAICBackward1), xlab = "Estimated Probability", ylab = "Deviance Residual", main="Model 1")
@@ -413,7 +418,7 @@ All the Plots look good.
 # Half-Normal Probability Plot  
 A half-normal probability plot helps to highlight outlying deviance residuals even though the residuals are not normally distributed. Outliers will appear at the top right of a half-normal probability plot as points separated from the others.  
 ```{r}
-png('half_normal.png')
+#png('plots/half_normal.png')
 par(mfrow=c(3,3))
 halfnorm(residuals(model.BestAICBackward1), main="Model 1")
 halfnorm(residuals(model.BestAICBackward2), main="Model 2")
@@ -510,7 +515,7 @@ fpr.mat <- matrix(list(), nrow=length(model.list), ncol=k)
 tpr.mat <- matrix(list(), nrow=length(model.list), ncol=k)
 auc.mat <- matrix(numeric(), nrow=length(model.list), ncol=k)
 roc.plots.mat <- matrix(list(), nrow=length(model.list), ncol=k)
-#png("ROC_plots.png")
+#png("plots/ROC_plots.png")
 par(mfrow=c(3,3))
 for (model.id in 1:length(model.list)){
   cv.id <- 1
@@ -534,7 +539,6 @@ do.call(grid.arrange, roc.plots.mat[, 1])
 mean.auc <- apply(auc.mat, 1, mean)
 names(mean.auc) <- names(model.list)
 mean.auc
-#best.model.id <- 7
 best.model.id <- which.max(mean.auc)
 names(model.list)[best.model.id]
 ```
@@ -564,7 +568,7 @@ df <- data.frame(cutoffs <- cutoffs, sens <- sens, spec <- spec, acc <- acc)
 names(df) <- c("cutoffs", "sens", "spec", "acc")
 df
 
-png("sens_spec_acc.png")
+#png("plots/sens_spec_acc.png")
 plot(round(df$cutoffs, 4),df$sens, xlab="Cutoff", ylab="Value",cex.lab=1.5,cex.axis=1.5,ylim=c(0,1),type="l",lty=2,lwd=2,axes=TRUE)
 lines(round(df$cutoffs, 4), df$spec,lty=4,lwd=3)
 lines(round(df$cutoffs, 4), df$acc,lwd=2, type="l")
@@ -574,19 +578,20 @@ legend(0.5,.25,lty=c(2,4,1),lwd=c(2,3,2),c("Sensitivity","Specificity","Accuracy
 pred <- ifelse(predicted >= 0.45, "CRC","Healthy")
 confusionMatrix(pred, validation$Class)
 ```
-
+The validation set has a Sensitivity of 0.8 and Specificity of 0.75 with a balaanced accuracy of 0.775.  
 
 ## Fitting the Best Model
 We now fit the Best Model with the full training dataset.
 ```{r}
+# Training the best model with the full training set.  
 set.seed(seed.id)
 best.fit <- train(model.list[[best.model.id]], data = training, method = "glm", family="quasibinomial")
 summary(best.fit)
 
-# Coefficients
+# Odds Ratio
 exp(coef(best.fit$finalModel))
 
-# Confidence Interval of Coefficients
+# Confidence Interval of Regression Coefficients
 confint(best.fit$finalModel)
 ```
 
@@ -598,7 +603,7 @@ training.numeric$Class <- as.numeric(training$Class)
 training.numeric$Class[training.numeric$Class == 1] <- 0
 training.numeric$Class[training.numeric$Class == 2] <- 1
 
-png("predicted_prob.png")
+#png("plots/predicted_prob.png")
 par(mfrow=c(3,2))
 test <- with(training, data.frame(TIMP1=TIMP1, LAMP2=median(LAMP2), HP=median(HP), LRG1=median(LRG1), SERPINA7= median(SERPINA7), LUM=median(LUM)))
 test$P <- predict(best.fit, newdata=test, type='prob')[, 1]
@@ -632,6 +637,7 @@ points(training$LUM, test$P)
 #dev.off()
 par(mfrow=c(1,1))
 ```
+
 ## Test the Final Model
 We now introduce the test dataset for final results.
 ```{r}
